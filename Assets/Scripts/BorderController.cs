@@ -1,3 +1,5 @@
+using System.Collections;
+using TMPro;
 using UnityEngine;
 
 public class BorderController : MonoBehaviour
@@ -5,6 +7,13 @@ public class BorderController : MonoBehaviour
     [Header("Reserved Visual References")]
     [SerializeField] private SpriteMask outlineMask;
     [SerializeField] private SpriteRenderer outlineRenderer;
+    [SerializeField] private TMP_Text speedTextBoxText;
+    [SerializeField] public Sprite[] ballSpeedPanel;
+    [SerializeField] public Sprite[] ballLaunchPanel;
+
+    [Header("Panel Audio")]
+    public AudioClip panelOpen;
+    [Range(0f, 1f)] public float panelOpenVolume = 1f;
 
     [Header("Scorch Marks")]
     [SerializeField] public Sprite[] scorchSprites;
@@ -16,10 +25,17 @@ public class BorderController : MonoBehaviour
 
     private int lastImpactFrame = -1;
     private GameObject lastImpactBall;
+    private const float PanelFps = 24f;
+    private static readonly Vector3 PanelScale = new Vector3(2f, 2f, 1f);
+    private SpriteRenderer speedPanelRenderer;
+    private SpriteRenderer launchPanelRenderer;
+    private Coroutine speedPanelCoroutine;
+    private Coroutine launchPanelCoroutine;
 
     private void Awake()
     {
         RegisterCollisionRelays();
+        SpawnLaunchPanelRenderer();
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -168,6 +184,102 @@ public class BorderController : MonoBehaviour
     public void RelayTrigger(Collider2D other)
     {
         ProcessImpact(other.gameObject, other.ClosestPoint(transform.position));
+    }
+
+    public void OpenSpeedPanel()
+    {
+        AudioSource.PlayClipAtPoint(panelOpen, transform.position, panelOpenVolume);
+
+        if (speedPanelRenderer != null)
+        {
+            Destroy(speedPanelRenderer.gameObject);
+        }
+
+        GameObject speedPanelObject = new GameObject("BallSpeedPanel");
+        speedPanelObject.transform.SetParent(transform, false);
+        speedPanelObject.transform.localPosition = Vector3.zero;
+        speedPanelObject.transform.localRotation = Quaternion.identity;
+        speedPanelObject.transform.localScale = PanelScale;
+
+        speedPanelRenderer = speedPanelObject.AddComponent<SpriteRenderer>();
+        speedPanelRenderer.sprite = ballSpeedPanel[0];
+        speedTextBoxText.enabled = false;
+
+        if (speedPanelCoroutine != null)
+        {
+            StopCoroutine(speedPanelCoroutine);
+        }
+
+        speedPanelCoroutine = StartCoroutine(OpenSpeedPanelRoutine());
+    }
+
+    private IEnumerator OpenSpeedPanelRoutine()
+    {
+        yield return AnimateFramesForward(speedPanelRenderer, ballSpeedPanel);
+        speedTextBoxText.enabled = true;
+        speedPanelCoroutine = null;
+    }
+
+    public void OpenLaunchPanel()
+    {
+        if (launchPanelCoroutine != null)
+        {
+            StopCoroutine(launchPanelCoroutine);
+        }
+
+        launchPanelCoroutine = StartCoroutine(AnimateFramesForward(launchPanelRenderer, ballLaunchPanel));
+    }
+
+    public void CloseLaunchPanel()
+    {
+        if (launchPanelCoroutine != null)
+        {
+            StopCoroutine(launchPanelCoroutine);
+        }
+
+        launchPanelCoroutine = StartCoroutine(AnimateFramesReverse(launchPanelRenderer, ballLaunchPanel));
+    }
+
+    private void SpawnLaunchPanelRenderer()
+    {
+        GameObject launchPanelObject = new GameObject("BallLaunchPanel");
+        launchPanelObject.transform.SetParent(transform, false);
+        launchPanelObject.transform.localPosition = Vector3.zero;
+        launchPanelObject.transform.localRotation = Quaternion.identity;
+        launchPanelObject.transform.localScale = PanelScale;
+
+        launchPanelRenderer = launchPanelObject.AddComponent<SpriteRenderer>();
+        launchPanelRenderer.sprite = ballLaunchPanel[0];
+    }
+
+    private IEnumerator AnimateFramesForward(SpriteRenderer targetRenderer, Sprite[] frames)
+    {
+        float frameDuration = 1f / PanelFps;
+
+        for (int i = 0; i < frames.Length; i++)
+        {
+            targetRenderer.sprite = frames[i];
+
+            if (i < frames.Length - 1)
+            {
+                yield return new WaitForSeconds(frameDuration);
+            }
+        }
+    }
+
+    private IEnumerator AnimateFramesReverse(SpriteRenderer targetRenderer, Sprite[] frames)
+    {
+        float frameDuration = 1f / PanelFps;
+
+        for (int i = frames.Length - 1; i >= 0; i--)
+        {
+            targetRenderer.sprite = frames[i];
+
+            if (i > 0)
+            {
+                yield return new WaitForSeconds(frameDuration);
+            }
+        }
     }
 }
 

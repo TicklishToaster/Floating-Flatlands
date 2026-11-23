@@ -48,7 +48,6 @@ public class ShieldController : MonoBehaviour
     private float shieldPulseTimer;
     private float shieldScanTimer;
     private bool isAiming;
-    private bool isTwoPlayerMode;
     private float aimCenterAngle;
     private float aimUpSign;
     private float aimAngleOffset;
@@ -211,7 +210,6 @@ public class ShieldController : MonoBehaviour
     // Called by the ball with its exact post-bounce velocity so the arrow points where the ball will travel.
     public void SetAimDirection(Vector2 bounceVelocity)
     {
-        isTwoPlayerMode = PlayerPrefs.GetInt("Players") == 2;
         aimCenterAngle = bounceVelocity.x >= 0f ? 0f : 180f;
         aimUpSign = bounceVelocity.x >= 0f ? 1f : -1f;
         aimAngleOffset = Mathf.DeltaAngle(aimCenterAngle, Vector2.SignedAngle(Vector2.right, bounceVelocity));
@@ -246,10 +244,10 @@ public class ShieldController : MonoBehaviour
 
         if (isPlayerOneShield)
         {
-            return isTwoPlayerMode ? PlayerMovement.ReadPlayerOneVertical() : PlayerMovement.ReadSinglePlayerVertical();
+            return PlayerMovement.ReadVertical();
         }
 
-        return isTwoPlayerMode ? PlayerMovement.ReadPlayerTwoVertical() : 0f;
+        return 0f;
     }
 
     private void ApplyAimRotation()

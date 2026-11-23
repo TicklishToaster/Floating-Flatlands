@@ -53,6 +53,9 @@ public class BallController : MonoBehaviour
     private GameObject lastHitObject;
     private Vector2 previousVelocity;
 
+    private GameController gameController;
+    private bool isWaitingForLaunch;
+
     private bool isHeld;
     private Transform heldAnchor;
     private ShieldController heldShieldController;
@@ -72,6 +75,7 @@ public class BallController : MonoBehaviour
         rb.gravityScale = 0f;
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+        gameController = FindAnyObjectByType<GameController>();
     }
 
     private void OnDisable()
@@ -84,13 +88,41 @@ public class BallController : MonoBehaviour
         }
     }
 
-    private void Start()
+    // Keeps the ball completely still (speed 0) until Launch is called.
+    public void PrepareForLaunch()
     {
-        SetRandomDirection();
+        isWaitingForLaunch = true;
+        rb.linearVelocity = Vector2.zero;
+    }
+
+    // Starts the ball moving at its minimum speed in the given direction.
+    public void Launch(float angleDegrees)
+    {
+        isWaitingForLaunch = false;
+        Vector2 direction = Quaternion.Euler(0f, 0f, angleDegrees) * Vector2.right;
+        rb.linearVelocity = direction.normalized * minSpeed;
+        previousVelocity = rb.linearVelocity;
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other == gameController.ScoreZone1)
+        {
+            gameController.EndRound(true);
+        }
+        else if (other == gameController.ScoreZone2)
+        {
+            gameController.EndRound(false);
+        }
     }
 
     private void FixedUpdate()
     {
+        if (isWaitingForLaunch)
+        {
+            return;
+        }
+
         if (isHeld)
         {
             UpdateHold();
@@ -219,6 +251,8 @@ public class BallController : MonoBehaviour
             ShieldController shield = collision.collider.GetComponentInParent<ShieldController>();
             if (shield != null)
             {
+                Vector2 constrainedDirection = ConstrainShieldBounceDirection(reflected.normalized, shield);
+                newVelocity = constrainedDirection * adjustedSpeed;
                 BeginHold(shield.transform, shield.RecoilOutDurationSeconds, newVelocity, shield);
                 shield.SetAimDirection(newVelocity);
                 lastHitObject = collision.gameObject;
@@ -332,6 +366,53 @@ public class BallController : MonoBehaviour
 
         Vector2 delta = (Vector2)transform.position - (Vector2)collision.collider.bounds.center;
         return delta != Vector2.zero ? delta.normalized : Vector2.up;
+    }
+
+    // Keeps shield bounces inside the 180-degree hemisphere that the shield is facing.
+    // If a weird impact normal pushes the bounce backward, snap to the nearest valid 45-degree angle.
+    private Vector2 ConstrainShieldBounceDirection(Vector2 reflectedDirection, ShieldController shield)
+    {
+        bool shouldLaunchRight = shield.transform.position.x < 0f;
+        bool isInsideFacingHemisphere = shouldLaunchRight ? reflectedDirection.x > 0f : reflectedDirection.x < 0f;
+        if (isInsideFacingHemisphere)
+        {
+            return reflectedDirection.normalized;
+        }
+
+        float currentAngle = Mathf.Atan2(reflectedDirection.y, reflectedDirection.x) * Mathf.Rad2Deg;
+        float snappedAngle;
+
+        if (shouldLaunchRight)
+        {
+            snappedAngle = GetNearestAngle(currentAngle, -45f, 0f, 45f);
+        }
+        else
+        {
+            snappedAngle = GetNearestAngle(currentAngle, 135f, 180f, 225f);
+        }
+
+        return (Quaternion.Euler(0f, 0f, snappedAngle) * Vector2.right).normalized;
+    }
+
+    private float GetNearestAngle(float angle, float optionA, float optionB, float optionC)
+    {
+        float bestAngle = optionA;
+        float bestDelta = Mathf.Abs(Mathf.DeltaAngle(angle, optionA));
+
+        float deltaB = Mathf.Abs(Mathf.DeltaAngle(angle, optionB));
+        if (deltaB < bestDelta)
+        {
+            bestDelta = deltaB;
+            bestAngle = optionB;
+        }
+
+        float deltaC = Mathf.Abs(Mathf.DeltaAngle(angle, optionC));
+        if (deltaC < bestDelta)
+        {
+            bestAngle = optionC;
+        }
+
+        return bestAngle;
     }
 
     private void SetRandomDirection()

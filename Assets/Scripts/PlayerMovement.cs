@@ -1,78 +1,32 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class PlayerMovement : MonoBehaviour
 {
-    // Movimientos raquetas
-    // Crea variables
-    [SerializeField] float speed = 7f;
-    [SerializeField] bool isPlayerOne = true;
+    [SerializeField] public float speed = 6f;
+    private float minY = -3.4f;
+    private float maxY = 3.4f;
 
-    // N�mero de jugadores
-    public int players;
-
-    // Carga el n�mero de jugadores por PlayerPrefs
-    void Start()
-    {       
-        players = PlayerPrefs.GetInt("Players");       
-    }
-
-    // Carga funci�n de movimiento de raquetas seg�n est� jugando uno o dos personas
     void Update()
     {
         bool shouldFreezeThisPaddle = BallController.Instance != null &&
-            ((isPlayerOne && BallController.Instance.IsHeldOnPlayerOneSide) ||
-             (!isPlayerOne && BallController.Instance.IsHeldOnPlayerTwoSide));
+            ((transform.position.x < 0f && BallController.Instance.IsHeldOnPlayerOneSide) ||
+             (transform.position.x > 0f && BallController.Instance.IsHeldOnPlayerTwoSide));
 
         if (shouldFreezeThisPaddle)
         {
             return;
         }
 
-        if (players==2)
-        {
-            TwoPlayers();
-        }
-        else
-        {
-            OnePlayer();
-        }    
-    }
-
-    // Al ser 2 jugadores, toma los Inputs desde dos Axis distintos
-    private void TwoPlayers()
-    {
-        float pMovement = isPlayerOne ? ReadPlayerOneVertical() : ReadPlayerTwoVertical();
-           Vector2 playerPosition = transform.position;
-           playerPosition.y = Mathf.Clamp(playerPosition.y + pMovement * speed * Time.deltaTime, -3.9f, 3.9f);
-           transform.position = playerPosition;  
-    }
-
-    // Al ser 1 jugador, �nicamente toma el Input por Axis de un jugador
-    private void OnePlayer()
-    {
-        float pMovement = ReadSinglePlayerVertical();
+        float pMovement = ReadVertical();
         Vector2 playerPosition = transform.position;
-        playerPosition.y = Mathf.Clamp(playerPosition.y + pMovement * speed * Time.deltaTime, -3.9f, 3.9f);
-        transform.position = playerPosition;  
+        playerPosition.y = Mathf.Clamp(playerPosition.y + pMovement * speed * Time.deltaTime, minY, maxY);
+        transform.position = playerPosition;
     }
 
-    public static float ReadSinglePlayerVertical()
+    public static float ReadVertical()
     {
-        float value = ReadKeyboardAxis(Key.W, Key.S) + ReadKeyboardAxis(Key.UpArrow, Key.DownArrow);
-        return Mathf.Clamp(value + ReadGamepadVertical(), -1f, 1f);
-    }
-
-    public static float ReadPlayerOneVertical()
-    {
-        return Mathf.Clamp(ReadKeyboardAxis(Key.W, Key.S) + ReadGamepadVertical(), -1f, 1f);
-    }
-
-    public static float ReadPlayerTwoVertical()
-    {
-        return ReadKeyboardAxis(Key.UpArrow, Key.DownArrow);
+        return Mathf.Clamp(ReadKeyboardAxis(Key.W, Key.S) + ReadKeyboardAxis(Key.UpArrow, Key.DownArrow), -1f, 1f);
     }
 
     private static float ReadKeyboardAxis(Key upKey, Key downKey)
@@ -92,11 +46,5 @@ public class PlayerMovement : MonoBehaviour
         }
 
         return upPressed ? 1f : -1f;
-    }
-
-    private static float ReadGamepadVertical()
-    {
-        Gamepad gamepad = Gamepad.current;
-        return gamepad == null ? 0f : gamepad.leftStick.ReadValue().y;
     }
 }
