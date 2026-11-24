@@ -9,7 +9,6 @@
 
 - Earth background: "Pixel Art Planet Earth from Space with Stars and Clouds" by Neyo Studio, via Vecteezy:
   https://www.vecteezy.com/vector-art/81704371-pixel-art-planet-earth-from-space-with-stars-and-clouds
-  Used subject to the applicable Vecteezy licence.
 
 ### Original assets
 Ship designs, additional backgrounds, particle effects, and all other assets not listed above were custom made for this project.
